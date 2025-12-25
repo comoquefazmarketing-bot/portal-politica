@@ -20,19 +20,7 @@ políticas de forma transparente e acessível.
 make up
 ```
 
-3. Em seguida, aplique as migrações:
-
-```bash
-make migrate
-```
-
-> **Observação:** Neste passo, apenas o backend básico foi implementado; frontend e worker ainda não existem.
-
-## Backend (API)
-
-- O backend lê variáveis do `.env` na raiz.
-- Health check disponível em: `http://localhost:58000/health` (ou porta definida em `API_PORT`).
-- Para criar fontes via `POST /sources`, envie o header `X-API-KEY` com o valor de `API_KEY`.
+> **Observação:** Neste passo, a app ainda não foi implementada; apenas infra e estrutura.
 
 ## Portas padrão
 
