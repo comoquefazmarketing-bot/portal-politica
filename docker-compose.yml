@@ -1,0 +1,85 @@
+version: "3.9"
+
+networks:
+  portal-politica:
+    name: portal-politica
+
+volumes:
+  portal-politica-postgres:
+    name: portal-politica-postgres
+  portal-politica-redis:
+    name: portal-politica-redis
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: portal-politica-postgres
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    env_file:
+      - .env
+    volumes:
+      - portal-politica-postgres:/var/lib/postgresql/data
+    networks:
+      - portal-politica
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: portal-politica-redis
+    ports:
+      - "${REDIS_PORT:-56379}:6379"
+    volumes:
+      - portal-politica-redis:/data
+    networks:
+      - portal-politica
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: portal-politica-api:dev
+    container_name: portal-politica-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-58000}:8000"
+    env_file:
+      - .env
+    networks:
+      - portal-politica
+
+  worker:
+    image: portal-politica-worker:dev
+    container_name: portal-politica-worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    networks:
+      - portal-politica
+
+  web:
+    image: portal-politica-web:dev
+    container_name: portal-politica-web
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "${WEB_PORT:-53000}:3000"
+    env_file:
+      - .env
+    networks:
+      - portal-politica
