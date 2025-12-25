@@ -15,3 +15,9 @@ restart:
 
 clean:
 \tdocker compose down -v
+
+migrate:
+\tdocker compose exec api alembic upgrade head
+
+makemigrations:
+\tdocker compose exec api alembic revision --autogenerate -m "init"
