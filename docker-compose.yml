@@ -1,0 +1,88 @@
+version: "3.9"
+
+networks:
+  portal-politica:
+    name: portal-politica
+
+volumes:
+  portal-politica-postgres:
+    name: portal-politica-postgres
+  portal-politica-redis:
+    name: portal-politica-redis
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: portal-politica-postgres
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    env_file:
+      - .env
+    volumes:
+      - portal-politica-postgres:/var/lib/postgresql/data
+    networks:
+      - portal-politica
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: portal-politica-redis
+    ports:
+      - "${REDIS_PORT:-56379}:6379"
+    volumes:
+      - portal-politica-redis:/data
+    networks:
+      - portal-politica
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    image: portal-politica-api:dev
+    container_name: portal-politica-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "${API_PORT:-58000}:8000"
+    env_file:
+      - .env
+    networks:
+      - portal-politica
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    image: portal-politica-web:dev
+    container_name: portal-politica-web
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:8000
+    networks:
+      - portal-politica
